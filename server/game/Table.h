@@ -65,7 +65,7 @@ protected:
 protected:
     ITableUserAction               *m_pITableUserAction;
 protected:
-    IMsgClient              *m_pINetworkClient;
+    IMsgClient              *m_pIMsgClient;
     ITimer                   *m_pITimer;                
     ITableHook                *m_pITableHook;
     IDataTransition              *m_pIMainServiceFrame;

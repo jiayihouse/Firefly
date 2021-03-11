@@ -92,33 +92,33 @@ namespace Firefly
         return 0;
     }
 
-    COverLapped::COverLapped( enOperationType OperationType )
-        : m_OperationType( OperationType )
+    FFMsgServer::FFMsgServer( eMsgType msgType )
+        : m_eMsgType( msgType )
     {
     }
 
-    COverLapped::~COverLapped()
+    FFMsgServer::~FFMsgServer()
     {
     }
 
-    COverLappedSend::COverLappedSend()
-        : COverLapped( enOperationType_Send )
+    FFMsgServerSend::FFMsgServerSend()
+        : FFMsgServer( eMsgType_Send )
     {
         clear();
     }
 
-    COverLappedSend::~COverLappedSend()
+    FFMsgServerSend::~FFMsgServerSend()
     {
     }
 
-    void COverLappedSend::clear()
+    void FFMsgServerSend::clear()
     {
         memset( m_cbBuffer, 0, sizeof( m_cbBuffer ) );
         m_wHead = 0;
         m_wTail = 0;
     }
 
-    unsigned int COverLappedSend::length() const
+    unsigned int FFMsgServerSend::length() const
     {
         return SOCKET_BUFFER_LEN;
     }
@@ -318,18 +318,18 @@ namespace Firefly
 
     ServerItem::~ServerItem()
     {
-        for( size_t i = 0; i < m_OverLappedSendFree.size(); i++ )
+        for( size_t i = 0; i < m_MsgSendFree.size(); i++ )
         {
-            delete m_OverLappedSendFree[i];
+            delete m_MsgSendFree[i];
         }
 
-        for( size_t i = 0; i < m_OverLappedSendActive.size(); i++ )
+        for( size_t i = 0; i < m_MsgSendActive.size(); i++ )
         {
-            delete m_OverLappedSendActive[i];
+            delete m_MsgSendActive[i];
         }
 
-        m_OverLappedSendFree.clear();
-        m_OverLappedSendActive.clear();
+        m_MsgSendFree.clear();
+        m_MsgSendActive.clear();
     }
 
     int ServerItem::Attach( int hSocket, unsigned int nClientIP, unsigned short port )
@@ -361,8 +361,8 @@ namespace Firefly
         m_dwRecvPacketCount = 0;
         m_bShutDown = false;
         m_wSurvivalTime = 0;
-        m_OverLappedSendFree.insert( m_OverLappedSendFree.end(), m_OverLappedSendActive.begin(), m_OverLappedSendActive.end() );
-        m_OverLappedSendActive.clear();
+        m_MsgSendFree.insert( m_MsgSendFree.end(), m_MsgSendActive.begin(), m_MsgSendActive.end() );
+        m_MsgSendActive.clear();
         return 0;
     }
 
@@ -373,12 +373,12 @@ namespace Firefly
             return true;
         }
 
-        if( m_OverLappedSendActive.size() > 0 )
+        if( m_MsgSendActive.size() > 0 )
         {
-            for( unsigned int i = 0; i < m_OverLappedSendActive.size(); ++i )
+            for( unsigned int i = 0; i < m_MsgSendActive.size(); ++i )
             {
-                COverLappedSend *pOverLappedSend = m_OverLappedSendActive[i];
-                int nRet = SendData( pOverLappedSend );
+                FFMsgServerSend *pMsgServerSend = m_MsgSendActive[i];
+                int nRet = SendData( pMsgServerSend );
 
                 if( nRet < 0 )
                 {
@@ -727,33 +727,33 @@ namespace Firefly
         }
 
         unsigned int wPacketHead = sizeof( MsgHead );
-        COverLappedSend *pOverLappedSend = GetSendOverLapped( wPacketHead );
+        FFMsgServerSend *pMsgServerSend = GetSendOverLapped( wPacketHead );
 
-        if( pOverLappedSend == NULL )
+        if( pMsgServerSend == NULL )
         {
             LOG( INFO ) << strThreadLogFlag << __FUNCTION__ << " tcpnetworkclosesocket:13";
             CloseSocket( wRountID );
             return false;
         }
 
-        unsigned int wSourceLen = pOverLappedSend->m_wTail;
+        unsigned int wSourceLen = pMsgServerSend->m_wTail;
         int nPacketSize  = MsgAssist::MSG_HEAD_LENGTH;
         //end
 
         if( m_enConnectType == eConnectType_WebSocket )
         {
             // unsigned int nLen = 0;
-            // Utility::WSEncodeFrame( cbDataBuffer, nPacketSize, ( char * )( pOverLappedSend->m_cbBuffer + wSourceLen ), nLen, enWSBinaryFrame );
-            // pOverLappedSend->m_wTail += nLen;
+            // Utility::WSEncodeFrame( cbDataBuffer, nPacketSize, ( char * )( pMsgServerSend->m_cbBuffer + wSourceLen ), nLen, enWSBinaryFrame );
+            // pMsgServerSend->m_wTail += nLen;
         }
         else
         {
-            memcpy( pOverLappedSend->m_cbBuffer + wSourceLen, (char*)pMsgHead, nPacketSize );
-            pOverLappedSend->m_wTail += nPacketSize;
+            memcpy( pMsgServerSend->m_cbBuffer + wSourceLen, (char*)pMsgHead, nPacketSize );
+            pMsgServerSend->m_wTail += nPacketSize;
         }
 
         {
-            int nRet = SendData( pOverLappedSend );
+            int nRet = SendData( pMsgServerSend );
 
             if( nRet < 0 )
             {
@@ -783,22 +783,22 @@ namespace Firefly
 	    LOG( INFO ) << strThreadLogFlag << __FUNCTION__ << "SendDataTest 3:"<<wDataSize;
 
         unsigned int wPacketHead = sizeof( MsgHead ) + wDataSize;
-        COverLappedSend *pOverLappedSend = GetSendOverLapped( wPacketHead );
+        FFMsgServerSend *pMsgServerSend = GetSendOverLapped( wPacketHead );
 
-        if( pOverLappedSend == NULL )
+        if( pMsgServerSend == NULL )
         {
             LOG( INFO ) << strThreadLogFlag << __FUNCTION__ << " tcpnetworkclosesocket:15";
             CloseSocket( wRountID );
             return false;
         }
 
-        unsigned int wSourceLen = pOverLappedSend->m_wTail;
+        unsigned int wSourceLen = pMsgServerSend->m_wTail;
         if( m_enConnectType == eConnectType_WebSocket )
         {
 		    LOG( INFO ) << strThreadLogFlag << __FUNCTION__ << "SendDataTest 4:"<<wDataSize;
 		
             unsigned int nLen = 0;
-            char *pJsonData = ( char * )( pOverLappedSend->m_cbBuffer + wSourceLen );
+            char *pJsonData = ( char * )( pMsgServerSend->m_cbBuffer + wSourceLen );
 
             if( wDataSize > 0 )
             {
@@ -806,24 +806,24 @@ namespace Firefly
                 Utility::WSEncodeFrame( ( char * )pData + MsgAssist::MSG_HEAD_LENGTH, wDataSize - MsgAssist::MSG_HEAD_LENGTH, pJsonData, nLen, enWSBinaryFrame );
             }
 
-            pOverLappedSend->m_wTail += nLen;
+            pMsgServerSend->m_wTail += nLen;
         }
         else
         {
 		    LOG( INFO ) << strThreadLogFlag << __FUNCTION__ << "SendDataTest 5:"<<wDataSize;
             //probuffer data have been format into data
-            char *buffer = ( char * )( pOverLappedSend->m_cbBuffer + wSourceLen );
+            char *buffer = ( char * )( pMsgServerSend->m_cbBuffer + wSourceLen );
 		
 		    memcpy( buffer, (char*)pMsgHead, MsgAssist::MSG_HEAD_LENGTH );
-            pOverLappedSend->m_wTail += MsgAssist::MSG_HEAD_LENGTH;
+            pMsgServerSend->m_wTail += MsgAssist::MSG_HEAD_LENGTH;
 
             assert( pData != NULL );
             memcpy( buffer + MsgAssist::MSG_HEAD_LENGTH, pData, wDataSize );
 
-            pOverLappedSend->m_wTail += wDataSize;
+            pMsgServerSend->m_wTail += wDataSize;
         }
 
-        int nRet = SendData( pOverLappedSend );
+        int nRet = SendData( pMsgServerSend );
 
         if( nRet < 0 )
         {
@@ -838,17 +838,17 @@ namespace Firefly
     }
 
     //success：1，fail；0
-    int ServerItem::SendData( COverLappedSend *pOverLappedSend )
+    int ServerItem::SendData( FFMsgServerSend *pMsgServerSend )
     {
-        unsigned int wRemainData = pOverLappedSend->m_wTail - pOverLappedSend->m_wHead;
-        unsigned char *cbStartData = &pOverLappedSend->m_cbBuffer[pOverLappedSend->m_wHead];
+        unsigned int wRemainData = pMsgServerSend->m_wTail - pMsgServerSend->m_wHead;
+        unsigned char *cbStartData = &pMsgServerSend->m_cbBuffer[pMsgServerSend->m_wHead];
         while( wRemainData > 0 && IsValidSocket() )
         {
             ssize_t wSendSize = send( m_hSocketHandle, cbStartData, wRemainData, 0 );
 
             if( wSendSize > 0 )
             {
-                pOverLappedSend->m_wHead += wSendSize;
+                pMsgServerSend->m_wHead += wSendSize;
                 cbStartData += wSendSize;
                 wRemainData -= wSendSize;
             }
@@ -870,7 +870,7 @@ namespace Firefly
         }
         if( 0 == wRemainData || !IsValidSocket() )
         {
-            RestoreOverLapped( pOverLappedSend );
+            RestoreOverLapped( pMsgServerSend );
             return 1;
         }
         else
@@ -896,46 +896,46 @@ namespace Firefly
         return true;
     }
 
-    COverLappedSend *ServerItem::GetSendOverLapped( unsigned int wPacketHead )
+    FFMsgServerSend *ServerItem::GetSendOverLapped( unsigned int wPacketHead )
     {
-        if( m_OverLappedSendActive.size() > 1 )
+        if( m_MsgSendActive.size() > 1 )
         {
-            size_t nActiveCount = m_OverLappedSendActive.size();
-            COverLappedSend *pOverLappedSend = m_OverLappedSendActive[nActiveCount - 1];
-            unsigned int wRemainData = pOverLappedSend->m_wTail - pOverLappedSend->m_wHead;
+            size_t nActiveCount = m_MsgSendActive.size();
+            FFMsgServerSend *pMsgServerSend = m_MsgSendActive[nActiveCount - 1];
+            unsigned int wRemainData = pMsgServerSend->m_wTail - pMsgServerSend->m_wHead;
 
-            if( wRemainData + wPacketHead <= sizeof( pOverLappedSend->m_cbBuffer ) )
+            if( wRemainData + wPacketHead <= sizeof( pMsgServerSend->m_cbBuffer ) )
             {
-                if( pOverLappedSend->m_wTail + wPacketHead > pOverLappedSend->length() )
+                if( pMsgServerSend->m_wTail + wPacketHead > pMsgServerSend->length() )
                 {
-                    memcpy( &pOverLappedSend->m_cbBuffer[0], &pOverLappedSend->m_cbBuffer[pOverLappedSend->m_wHead], \
-                            pOverLappedSend->m_wTail - pOverLappedSend->m_wHead );
-                    pOverLappedSend->m_wTail -= pOverLappedSend->m_wHead;
-                    pOverLappedSend->m_wHead = 0;
-                    return pOverLappedSend;
+                    memcpy( &pMsgServerSend->m_cbBuffer[0], &pMsgServerSend->m_cbBuffer[pMsgServerSend->m_wHead], \
+                            pMsgServerSend->m_wTail - pMsgServerSend->m_wHead );
+                    pMsgServerSend->m_wTail -= pMsgServerSend->m_wHead;
+                    pMsgServerSend->m_wHead = 0;
+                    return pMsgServerSend;
                 }
             }
         }
 
-        if( m_OverLappedSendFree.size() > 0 )
+        if( m_MsgSendFree.size() > 0 )
         {
-            size_t nFreeCount = m_OverLappedSendFree.size();
-            COverLappedSend *pOverLappedSend = m_OverLappedSendFree[nFreeCount - 1];
+            size_t nFreeCount = m_MsgSendFree.size();
+            FFMsgServerSend *pMsgServerSend = m_MsgSendFree[nFreeCount - 1];
 
-            pOverLappedSend->clear();
-            m_OverLappedSendActive.push_back( pOverLappedSend );
-            m_OverLappedSendFree.erase( m_OverLappedSendFree.begin() + m_OverLappedSendFree.size() - 1 );
-            return pOverLappedSend;
+            pMsgServerSend->clear();
+            m_MsgSendActive.push_back( pMsgServerSend );
+            m_MsgSendFree.erase( m_MsgSendFree.begin() + m_MsgSendFree.size() - 1 );
+            return pMsgServerSend;
         }
 
         try
         {
-            COverLappedSend *pOverLappedSend = new COverLappedSend;
-            assert( pOverLappedSend != NULL );
+            FFMsgServerSend *pMsgServerSend = new FFMsgServerSend;
+            assert( pMsgServerSend != NULL );
 
-            pOverLappedSend->clear();
-            m_OverLappedSendActive.push_back( pOverLappedSend );
-            return pOverLappedSend;
+            pMsgServerSend->clear();
+            m_MsgSendActive.push_back( pMsgServerSend );
+            return pMsgServerSend;
         }
         catch( ... )
         {
@@ -945,20 +945,20 @@ namespace Firefly
         return NULL;
     }
 
-    void ServerItem::RestoreOverLapped( COverLappedSend *pOverLappedSend )
+    void ServerItem::RestoreOverLapped( FFMsgServerSend *pMsgServerSend )
     {
-        pOverLappedSend->clear();
+        pMsgServerSend->clear();
 
-        for( auto iter = m_OverLappedSendActive.begin(); iter != m_OverLappedSendActive.end(); ++iter )
+        for( auto iter = m_MsgSendActive.begin(); iter != m_MsgSendActive.end(); ++iter )
         {
-            if( *iter == pOverLappedSend )
+            if( *iter == pMsgServerSend )
             {
-                m_OverLappedSendActive.erase( iter );
+                m_MsgSendActive.erase( iter );
                 break;
             }
         }
 
-        m_OverLappedSendFree.push_back( pOverLappedSend );
+        m_MsgSendFree.push_back( pMsgServerSend );
         m_wSurvivalTime = SAFETY_QUOTIETY;
         m_dwSendTickCount = Utility::GetTickCount();
     }
@@ -1147,9 +1147,9 @@ namespace Firefly
                 assert( wDataSize >= ( sizeof( tagSendDataRequest ) - sizeof( pSendDataRequest->cbSendBuffer ) ) );
                 assert( wDataSize == ( pSendDataRequest->wDataSize + sizeof( tagSendDataRequest ) - sizeof( pSendDataRequest->cbSendBuffer ) ) );
 
-                for( size_t i = 0; i < m_TempNetworkItemArray.size(); i++ )
+                for( size_t i = 0; i < m_TempServerItemArray.size(); i++ )
                 {
-                    ServerItem *pServerItem = m_TempNetworkItemArray[i];
+                    ServerItem *pServerItem = m_TempServerItemArray[i];
                     std::unique_lock <std::mutex> ThreadLock( pServerItem->GetCriticalSection() );
                     pServerItem->SendData( &(pSendDataRequest->MsgHeadInfo), pSendDataRequest->cbSendBuffer, pSendDataRequest->wDataSize );
                 }
@@ -1187,14 +1187,14 @@ namespace Firefly
             case Asyn_DETECT_SOCKET:
             {
                 m_ItemLocked.lock();
-                m_TempNetworkItemArray.clear();
-                m_TempNetworkItemArray.insert( m_TempNetworkItemArray.begin(), m_NetworkItemActive.begin(), m_NetworkItemActive.end() );
+                m_TempServerItemArray.clear();
+                m_TempServerItemArray.insert( m_TempServerItemArray.begin(), m_ServerItemActive.begin(), m_ServerItemActive.end() );
                 m_ItemLocked.unlock();
                 time_t dwNowTime = time( NULL );
 
-                for( size_t i = 0; i < m_TempNetworkItemArray.size(); i++ )
+                for( size_t i = 0; i < m_TempServerItemArray.size(); i++ )
                 {
-                    ServerItem *pServerItem = m_TempNetworkItemArray[i];
+                    ServerItem *pServerItem = m_TempServerItemArray[i];
 
                     if( pServerItem == NULL )
                     {
@@ -1468,16 +1468,16 @@ namespace Firefly
         m_ServerRWThreadArray.clear();
         ServerItem *pServerItem = NULL;
 
-        for( size_t i = 0; i < m_NetworkItemActive.size(); i++ )
+        for( size_t i = 0; i < m_ServerItemActive.size(); i++ )
         {
-            pServerItem = m_NetworkItemActive[i];
+            pServerItem = m_ServerItemActive[i];
             std::unique_lock <std::mutex> lck( pServerItem->GetCriticalSection() );
             pServerItem->CloseSocket( pServerItem->GetRountID() );
         }
 
-        m_NetworkItemFree.insert( m_NetworkItemFree.begin(), m_NetworkItemActive.begin(), m_NetworkItemActive.end() );
-        m_NetworkItemActive.clear();
-        m_TempNetworkItemArray.clear();
+        m_ServerItemFree.insert( m_ServerItemFree.begin(), m_ServerItemActive.begin(), m_ServerItemActive.end() );
+        m_ServerItemActive.clear();
+        m_TempServerItemArray.clear();
         return true;
     }
 
@@ -1498,20 +1498,20 @@ namespace Firefly
     {
         std::unique_lock <std::mutex> lck( m_ItemLocked );
         ServerItem *pServerItem = NULL;
-        if( m_NetworkItemFree.size() > 0 )
+        if( m_ServerItemFree.size() > 0 )
         {
-            for( auto iter = m_NetworkItemFree.begin(); iter != m_NetworkItemFree.end(); ++iter )
+            for( auto iter = m_ServerItemFree.begin(); iter != m_ServerItemFree.end(); ++iter )
             {
                 pServerItem = *iter;
-                m_NetworkItemFree.erase( iter );
-                m_NetworkItemActive.push_back( pServerItem );
+                m_ServerItemFree.erase( iter );
+                m_ServerItemActive.push_back( pServerItem );
                 return pServerItem;
             }
         }
 
         if( NULL == pServerItem )
         {
-            unsigned short wStoreCount = m_NetworkItemStore.size();
+            unsigned short wStoreCount = m_ServerItemStore.size();
 
             if( wStoreCount < m_wMaxConnect )
             {
@@ -1525,8 +1525,8 @@ namespace Firefly
                         return NULL;
                     }
 
-                    m_NetworkItemActive.push_back( pServerItem );
-                    m_NetworkItemStore.push_back( pServerItem );
+                    m_ServerItemActive.push_back( pServerItem );
+                    m_ServerItemStore.push_back( pServerItem );
                 }
                 catch( ... )
                 {
@@ -1542,10 +1542,10 @@ namespace Firefly
     ServerItem *MsgServer::GetNetworkItem( unsigned short wIndex )
     {
         std::unique_lock <std::mutex> lck( m_ItemLocked );
-        assert( wIndex == 0 || wIndex < m_NetworkItemStore.size() );
-        if( wIndex >= m_NetworkItemStore.size() ) return NULL;
+        assert( wIndex == 0 || wIndex < m_ServerItemStore.size() );
+        if( wIndex >= m_ServerItemStore.size() ) return NULL;
 
-        ServerItem *pServerItem = m_NetworkItemStore[wIndex];
+        ServerItem *pServerItem = m_ServerItemStore[wIndex];
         return pServerItem;
     }
 
@@ -1553,14 +1553,14 @@ namespace Firefly
     {
         std::unique_lock <std::mutex> lck( m_ItemLocked );
         assert( pServerItem );
-        auto iterEnd = m_NetworkItemActive.end();
+        auto iterEnd = m_ServerItemActive.end();
 
-        for( auto iter = m_NetworkItemActive.begin(); iter != iterEnd; ++iter )
+        for( auto iter = m_ServerItemActive.begin(); iter != iterEnd; ++iter )
         {
             if( pServerItem == *iter )
             {
-                m_NetworkItemActive.erase( iter );
-                m_NetworkItemFree.push_back( pServerItem );
+                m_ServerItemActive.erase( iter );
+                m_ServerItemFree.push_back( pServerItem );
                 return true;
             }
         }

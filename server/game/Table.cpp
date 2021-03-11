@@ -21,7 +21,7 @@ void Table::init( ITableHook *TableHook, tagTableParameter &param )
     m_pITableHook = TableHook;
     m_iTableID = param.nTableID;
     m_pITimer = param.pITimer;
-    m_pINetworkClient = param.pIMsgClient;
+    m_pIMsgClient = param.pIMsgClient;
     m_pIMainServiceFrame = param.pIDataTrans;
     return ;
 }
@@ -141,5 +141,5 @@ bool Table::OnLoadCfgMessage( void *pData, int wDataSize, IUserItem *pIUserItem 
 
 IMsgClient *Table::GetNetworkClient()
 {
-    return m_pINetworkClient;
+    return m_pIMsgClient;
 }
